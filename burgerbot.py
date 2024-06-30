@@ -88,6 +88,7 @@ class Bot:
         self.dispatcher.add_handler(CommandHandler("my_services", self.__my_services))
         self.dispatcher.add_handler(CommandHandler("services", self.__services))
         self.cache: List[Message] = []
+        self.exit = threading.Event()
 
     def __get_uq_services(self) -> set[int]:
         return {
@@ -218,13 +219,13 @@ class Bot:
             return self.__poll()
 
     def __parse(self) -> None:
-        while True:
+        while not self.exit.is_set():
             services = self.__get_uq_services()
             logging.info(f"services are: {services}")
             slots = self.parser.parse(services)
             for slot in slots:
                 self.__send_message(slot)
-            time.sleep(30)
+            self.exit.wait(30)
 
     def __send_message(self, slot: Slot) -> None:
         if self.__msg_in_cache(slot.msg):
@@ -277,12 +278,19 @@ class Bot:
 
     def start(self) -> None:
         logging.info("starting bot")
+        self.exit.clear()
         poll_task = threading.Thread(target=self.__poll)
         parse_task = threading.Thread(target=self.__parse)
         parse_task.start()
         poll_task.start()
-        parse_task.join()
-        poll_task.join()
+        try:
+            self.exit.wait()
+        except KeyboardInterrupt:
+            logging.info("Received keyboard interrupt, exiting...")
+            self.exit.set()
+            self.updater.stop()
+            parse_task.join()
+            poll_task.join()
 
 
 def main() -> None:
