@@ -1,22 +1,20 @@
 #!/usr/bin/env python
 
-import time
-import os
 import json
-import threading
 import logging
+import os
 import sys
-from dataclasses import dataclass, asdict
-from typing import Any, List
+import threading
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from parser import Parser, Slot, build_url
+from typing import Any, List
 
 from telegram import ParseMode
 from telegram.ext import CommandHandler, Updater
 from telegram.ext.callbackcontext import CallbackContext
 from telegram.update import Update
-
-from parser import Parser, Slot, build_url
-
 
 CHATS_FILE = "chats.json"
 ua_url = "https://service.berlin.de/terminvereinbarung/termin/tag.php?termin=1&dienstleister=330857&anliegen[]=330869&herkunft=1"
@@ -75,7 +73,8 @@ class Bot:
         self.updater = Updater(os.environ["TELEGRAM_API_KEY"])
         self.__init_chats()
         self.users = self.__get_chats()
-        self.parser = Parser()
+        self.exit = threading.Event()
+        self.parser = Parser(self.exit)
         self.dispatcher = self.updater.dispatcher
         assert self.dispatcher is not None
         self.dispatcher.add_handler(CommandHandler("help", self.__help))
@@ -88,7 +87,6 @@ class Bot:
         self.dispatcher.add_handler(CommandHandler("my_services", self.__my_services))
         self.dispatcher.add_handler(CommandHandler("services", self.__services))
         self.cache: List[Message] = []
-        self.exit = threading.Event()
 
     def __get_uq_services(self) -> set[int]:
         return {
