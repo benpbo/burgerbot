@@ -48,7 +48,9 @@ class Parser:
     def __toggle_proxy(self) -> None:
         self.proxy_on = not self.proxy_on
 
-    def __parse_page(self, page, service_id) -> Optional[List[Slot]]:
+    def __parse_page(
+        self, page: requests.Response, service_id: int
+    ) -> Optional[List[Slot]]:
         if self.event.is_set():
             return
 
@@ -76,7 +78,7 @@ class Parser:
         slots: list[Slot] = []
         for svc in services:
             page = self.__get_url(build_url(svc))
-            if self.event.is_set():
+            if page is None:
                 return []
 
             parsed_slots = self.__parse_page(page, svc)
